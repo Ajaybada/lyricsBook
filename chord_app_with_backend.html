@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChordBook – Lyrics & Guitar Chords</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:ital,wght@0,700;1,500&display=swap');
+
+  :root {
+    --bg: #0f0f13; --surface: #17171e; --surface2: #1e1e28; --border: #2a2a38;
+    --chord: #f97316; --chord-dim: #7c3a12; --text: #e8e8f0; --text-muted: #8888a0;
+    --accent: #7c3aed; --green: #22c55e; --red: #ef4444; --radius: 10px;
+  }
+  [data-theme="light"] {
+    --bg: #f5f4ef; --surface: #ffffff; --surface2: #eeecea; --border: #d8d5ce;
+    --chord: #c2410c; --chord-dim: #fddccc; --text: #1a1a24; --text-muted: #6b6b80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; min-height: 100vh; transition: background .3s, color .3s; }
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--chord); }
+  .logo span { color: var(--text); font-style: italic; }
+  nav { display: flex; gap: 8px; align-items: center; }
+  .nav-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s; }
+  .nav-btn:hover, .nav-btn.active { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+  .api-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+  .api-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); transition: background .3s; }
+  .api-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .api-dot.offline { background: var(--red); }
+
+  main { flex: 1; padding: 24px; max-width: 900px; margin: 0 auto; width: 100%; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .search-bar { display: flex; gap: 10px; margin-bottom: 24px; }
+  .search-bar input { flex: 1; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: var(--radius); font-family: inherit; font-size: 14px; outline: none; transition: border .2s; }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar input::placeholder { color: var(--text-muted); }
+
+  .songs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+  .song-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; transition: all .2s; }
+  .song-card:hover { border-color: var(--chord); transform: translateY(-2px); box-shadow: 0 4px 20px #0004; }
+  .song-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .song-card .artist { font-size: 12px; color: var(--text-muted); }
+  .song-card .key-badge { display: inline-block; background: var(--chord-dim); color: var(--chord); font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 4px; margin-top: 10px; font-weight: 600; }
+  .song-card .genre { font-size: 11px; color: var(--text-muted); float: right; margin-top: 11px; }
+
+  /* Skeleton loader */
+  .skeleton { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .skel-line { background: var(--border); border-radius: 4px; margin-bottom: 8px; animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+  .no-results { color: var(--text-muted); text-align: center; padding: 48px 0; font-size: 14px; }
+  .error-msg { background: #ef444420; border: 1px solid #ef4444; border-radius: 8px; padding: 14px 18px; color: var(--red); font-size: 13px; margin-bottom: 16px; }
+
+  /* SONG VIEW */
+  .song-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .song-header-left h1 { font-size: 28px; font-weight: 700; font-family: 'Playfair Display', serif; }
+  .song-header-left .meta { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+  .song-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .icon-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s; display: flex; align-items: center; gap: 6px; }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .transpose-ctrl { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .transpose-ctrl button { background: none; border: none; color: var(--text); padding: 7px 12px; cursor: pointer; font-size: 16px; transition: background .2s; }
+  .transpose-ctrl button:hover { background: var(--border); }
+  .transpose-ctrl span { font-size: 12px; color: var(--text-muted); padding: 0 8px; min-width: 60px; text-align: center; font-family: 'JetBrains Mono', monospace; }
+
+  .lyrics-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; font-size: 16px; line-height: 2; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; margin-bottom: 120px; }
+  .chord-line { display: block; color: var(--chord); font-weight: 600; font-size: 14px; line-height: 1.4; margin-top: 6px; }
+  .lyric-line { display: block; color: var(--text); line-height: 1.6; margin-bottom: 6px; }
+  .section-header { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 20px; margin-bottom: 2px; display: block; font-family: 'Space Grotesk', sans-serif; }
+  .empty-line { display: block; height: 16px; }
+
+  /* CONTROL BAR */
+  .control-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 8px 40px #00000088; z-index: 200; }
+  .control-bar.hidden { display: none; }
+  .play-btn { background: var(--chord); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: transform .15s; }
+  .play-btn:hover { transform: scale(1.08); }
+  .stop-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: all .2s; }
+  .stop-btn:hover { border-color: var(--red); color: var(--red); }
+  .speed-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .speed-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .speed-row { display: flex; align-items: center; gap: 8px; }
+  .speed-row input[type=range] { width: 100px; accent-color: var(--chord); cursor: pointer; }
+  .speed-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--chord); min-width: 24px; }
+  .progress-bar { width: 120px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--chord); transition: width .1s; width: 0%; }
+  .close-bar { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; padding: 4px; }
+
+  /* ADD FORM */
+  .form-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }
+  .form-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 0; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .form-group label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+  .form-group input, .form-group select, .form-group textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; font-family: inherit; font-size: 14px; outline: none; transition: border .2s; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 360px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7; }
+  .form-group select option { background: var(--surface2); }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+  .btn { padding: 9px 22px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; transition: all .2s; }
+  .btn-primary { background: var(--chord); color: white; }
+  .btn-primary:hover { opacity: .9; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .chord-format-hint { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.9; }
+  .chord-format-hint code { color: var(--chord); font-family: 'JetBrains Mono', monospace; background: var(--border); padding: 1px 5px; border-radius: 3px; }
+
+  /* API CONFIG BOX */
+  .api-config { background: var(--surface2); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; }
+  .api-config strong { color: var(--accent); }
+  .api-config input { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none; margin-top: 6px; width: 100%; }
+  .api-config input:focus { border-color: var(--accent); }
+
+  .toast { position: fixed; top: 80px; right: 24px; color: white; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 999; transform: translateX(200%); transition: transform .3s; }
+  .toast.show { transform: translateX(0); }
+
+  @media print {
+    header, .control-bar, .song-controls, nav, .toast, #view-browse, #view-add, .api-config { display: none !important; }
+    body { background: white !important; color: black !important; }
+    .lyrics-container { border: none; padding: 0; font-size: 14px; }
+    .chord-line { color: #c2410c !important; }
+    .lyric-line { color: black !important; }
+    main { padding: 0; max-width: 100%; }
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body data-theme="dark">
+<div id="app">
+  <header>
+    <div class="logo">Chord<span>Book</span></div>
+    <nav>
+      <div class="api-status" id="api-status">
+        <div class="api-dot" id="api-dot"></div>
+        <span id="api-status-text">Checking...</span>
+      </div>
+      <button class="nav-btn active" onclick="showView('browse')">🎵 Browse</button>
+      <button class="nav-btn" onclick="showView('add')">+ Add Song</button>
+      <button class="nav-btn" id="theme-btn" onclick="toggleTheme()">☀️ Light</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- BROWSE VIEW -->
+    <div id="view-browse" class="view active">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search songs, artists, chords…" oninput="handleSearch()" />
+      </div>
+      <div id="error-container"></div>
+      <div class="songs-grid" id="songs-grid"></div>
+    </div>
+
+    <!-- SONG VIEW -->
+    <div id="view-song" class="view">
+      <div class="song-header">
+        <div class="song-header-left">
+          <h1 id="song-title"></h1>
+          <div class="meta" id="song-meta"></div>
+        </div>
+        <div class="song-controls">
+          <div class="transpose-ctrl">
+            <button onclick="transpose(-1)">♭</button>
+            <span id="transpose-label">Original</span>
+            <button onclick="transpose(1)">♯</button>
+          </div>
+          <button class="icon-btn" onclick="startScroll()">▶ Auto-scroll</button>
+          <button class="icon-btn" onclick="window.print()">🖨 Print</button>
+          <button class="icon-btn danger" onclick="deleteSong()" id="delete-btn">🗑 Delete</button>
+          <button class="icon-btn" onclick="showView('browse')">← Back</button>
+        </div>
+      </div>
+      <div class="lyrics-container" id="lyrics-display"></div>
+    </div>
+
+    <!-- ADD SONG VIEW -->
+    <div id="view-add" class="view">
+      <div class="api-config" id="api-config-box">
+        <strong>🔌 Backend URL</strong> — Apna server URL yahan dalo:<br>
+        <input type="text" id="api-url-input" placeholder="http://localhost:3001" value="" oninput="updateApiUrl()" />
+        <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">
+          Local: <code style="background:var(--border);padding:2px 5px;border-radius:3px">http://localhost:3001</code> &nbsp;|&nbsp;
+          Render: <code style="background:var(--border);padding:2px 5px;border-radius:3px">https://your-app.onrender.com</code>
+        </div>
+      </div>
+      <div class="form-section">
+        <h2>Add New Song</h2>
+        <div class="chord-format-hint">
+          <strong>Format:</strong> Chords inline: <code>[Am]Walking down the [F]road</code><br>
+          Sections: <code>[Verse 1]</code> &nbsp;<code>[Chorus]</code> &nbsp;<code>[Bridge]</code>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Song Title *</label>
+            <input type="text" id="form-title" placeholder="e.g. Hotel California" />
+          </div>
+          <div class="form-group">
+            <label>Artist</label>
+            <input type="text" id="form-artist" placeholder="e.g. Eagles" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Key</label>
+            <select id="form-key">
+              <option value="">Select key</option>
+              <option>C</option><option>C#</option><option>D</option><option>D#</option>
+              <option>E</option><option>F</option><option>F#</option><option>G</option>
+              <option>G#</option><option>A</option><option>A#</option><option>B</option>
+              <option>Am</option><option>Dm</option><option>Em</option><option>Bm</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Genre</label>
+            <input type="text" id="form-genre" placeholder="e.g. Rock, Gospel, Hindi" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Lyrics with Chords (ChordPro format)</label>
+          <textarea id="form-lyrics" placeholder="[Verse 1]&#10;[Am]Walking down the [F]road&#10;[C]Nothing left to [G]say&#10;&#10;[Chorus]&#10;[Am]Hold me [F]close&#10;[C]Don't let [G]go"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+          <button class="btn btn-primary" id="save-btn" onclick="saveSong()">💾 Save to MongoDB</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- CONTROL BAR -->
+<div class="control-bar hidden" id="control-bar">
+  <button class="stop-btn" onclick="stopScroll()">■</button>
+  <button class="play-btn" id="play-btn" onclick="togglePlay()">▶</button>
+  <div class="speed-section">
+    <div class="speed-label">BPM Speed</div>
+    <div class="speed-row">
+      <input type="range" id="speed-slider" min="1" max="10" value="3" oninput="updateSpeed()" />
+      <span class="speed-val" id="speed-val">3</span>
+    </div>
+  </div>
+  <div>
+    <div class="speed-label">Progress</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+  <button class="close-bar" onclick="hideControlBar()">✕</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// CONFIG
+// =============================================
+let API_BASE = localStorage.getItem('chordbook_api_url') || 'http://localhost:3001';
+
+function updateApiUrl() {
+  const val = document.getElementById('api-url-input').value.trim().replace(/\/$/, '');
+  API_BASE = val;
+  localStorage.setItem('chordbook_api_url', val);
+  checkApiStatus();
+}
+
+// Set saved URL in input
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('chordbook_api_url') || 'http://localhost:3001';
+  const inp = document.getElementById('api-url-input');
+  if (inp) inp.value = saved;
+  checkApiStatus();
+  renderSongs();
+});
+
+// =============================================
+// API STATUS CHECK
+// =============================================
+async function checkApiStatus() {
+  const dot = document.getElementById('api-dot');
+  const txt = document.getElementById('api-status-text');
+  try {
+    const res = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(4000) });
+    const data = await res.json();
+    if (data.success) {
+      dot.className = 'api-dot online';
+      txt.textContent = 'DB Connected';
+    } else throw new Error();
+  } catch {
+    dot.className = 'api-dot offline';
+    txt.textContent = 'Offline (localStorage)';
+  }
+}
+
+// =============================================
+// API CALLS
+// =============================================
+async function apiGetSongs(search = '') {
+  const url = search ? `${API_BASE}/api/songs?search=${encodeURIComponent(search)}` : `${API_BASE}/api/songs`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Server error');
+  const data = await res.json();
+  return data.songs;
+}
+
+async function apiGetSong(id) {
+  const res = await fetch(`${API_BASE}/api/songs/${id}`);
+  if (!res.ok) throw new Error('Song nahi mila');
+  const data = await res.json();
+  return data.song;
+}
+
+async function apiSaveSong(song) {
+  const res = await fetch(`${API_BASE}/api/songs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(song)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Save nahi hua');
+  return data.song;
+}
+
+async function apiDeleteSong(id) {
+  const res = await fetch(`${API_BASE}/api/songs/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Delete nahi hua');
+}
+
+// =============================================
+// FALLBACK: localStorage
+// =============================================
+const STORE_KEY = 'chordbook_songs_local';
+const DEFAULT_SONGS = [
+  { id: '1', title: "Wonderful Tonight", artist: "Eric Clapton", key: "G", genre: "Classic Rock", lyrics: "[Verse 1]\n[G]It's late in the evening; [D]she's wondering what clothes to wear\n[C]She puts on her makeup [D]and brushes her long [G]blonde hair\n\n[Chorus]\n[C]I feel wonderful [D]because I see the love [G]light in your eyes\n[C]How much I [D]love [G]you" },
+  { id: '2', title: "Amazing Grace", artist: "Traditional", key: "G", genre: "Gospel", lyrics: "[Verse 1]\n[G]Amazing [G7]grace how [C]sweet the [G]sound\nThat [G]saved a wretch like [D]me\n[G]I [G7]once was [C]lost but [G]now am [Em]found\nWas [G]blind but [D7]now I [G]see" }
+];
+
+function getLocalSongs() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || DEFAULT_SONGS; }
+  catch { return DEFAULT_SONGS; }
+}
+function saveLocalSongs(songs) { localStorage.setItem(STORE_KEY, JSON.stringify(songs)); }
+
+// =============================================
+// CHORD TRANSPOSITION
+// =============================================
+const SHARP_SCALE = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT_SCALE  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+
+function getNoteIndex(note) {
+  let i = SHARP_SCALE.indexOf(note);
+  return i === -1 ? FLAT_SCALE.indexOf(note) : i;
+}
+function transposeChord(chord, st) {
+  const m = chord.match(/^([A-G][b#]?)(.*)/);
+  if (!m) return chord;
+  const idx = getNoteIndex(m[1]);
+  if (idx === -1) return chord;
+  const ni = ((idx + st) % 12 + 12) % 12;
+  return (st >= 0 ? SHARP_SCALE : FLAT_SCALE)[ni] + m[2];
+}
+function transposeLine(line, st) {
+  return line.replace(/\[([A-G][b#]?[^[\]]*)\]/g, (_, c) => '[' + transposeChord(c, st) + ']');
+}
+
+// =============================================
+// CHORD PRO PARSER
+// =============================================
+function parseChordPro(raw, st = 0) {
+  let html = '';
+  for (const rawLine of raw.split('\n')) {
+    const line = st !== 0 ? transposeLine(rawLine, st) : rawLine;
+    const trimmed = line.trim();
+    if (/^\[([A-Z][a-z].*|Bridge|Intro|Outro|Solo|Pre-Chorus)\]$/.test(trimmed)) {
+      html += `<span class="section-header">⟨ ${trimmed.slice(1,-1)} ⟩</span>`;
+      continue;
+    }
+    if (!trimmed) { html += `<span class="empty-line"></span>`; continue; }
+    if (!/\[[A-G][^[\]]*\]/.test(line)) { html += `<span class="lyric-line">${esc(trimmed)}</span>`; continue; }
+    const parts = line.split(/(\[[A-G][b#]?[^[\]]*\])/);
+    let cl = '', ll = '';
+    for (const p of parts) {
+      if (/^\[[A-G][b#]?[^[\]]*\]$/.test(p)) {
+        const c = p.slice(1,-1);
+        const pad = Math.max(0, ll.length - cl.length);
+        cl += ' '.repeat(pad) + c;
+        ll += ' '.repeat(c.length);
+      } else { cl += ' '.repeat(Math.max(0, ll.length + p.length - cl.length)); ll += p; }
+    }
+    html += `<span class="chord-line">${esc(cl.trimEnd())}</span>`;
+    html += `<span class="lyric-line">${esc(ll.trimEnd())}</span>`;
+  }
+  return html;
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// =============================================
+// STATE
+// =============================================
+let currentSong = null, transposeSteps = 0;
+let isPlaying = false, scrollInterval = null;
+
+// =============================================
+// VIEWS
+// =============================================
+function showView(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  if (view === 'browse') { document.querySelectorAll('.nav-btn')[0].classList.add('active'); renderSongs(); hideControlBar(); }
+  else if (view === 'add') { document.querySelectorAll('.nav-btn')[1].classList.add('active'); hideControlBar(); }
+  else if (view === 'song') { hideControlBar(); window.scrollTo(0,0); }
+}
+
+// =============================================
+// SONG LIST
+// =============================================
+function showSkeleton() {
+  const g = document.getElementById('songs-grid');
+  g.innerHTML = Array(6).fill(`<div class="skeleton"><div class="skel-line" style="height:16px;width:70%"></div><div class="skel-line" style="height:12px;width:45%"></div><div class="skel-line" style="height:20px;width:30%;margin-top:12px"></div></div>`).join('');
+}
+
+async function renderSongs(filter = '') {
+  showSkeleton();
+  document.getElementById('error-container').innerHTML = '';
+  try {
+    const songs = await apiGetSongs(filter);
+    displaySongGrid(songs, false);
+  } catch {
+    // Fallback to localStorage
+    let songs = getLocalSongs();
+    if (filter) songs = songs.filter(s => [s.title,s.artist,s.genre,s.key].join(' ').toLowerCase().includes(filter.toLowerCase()));
+    displaySongGrid(songs, true);
+  }
+}
+
+function displaySongGrid(songs, isOffline) {
+  const g = document.getElementById('songs-grid');
+  if (isOffline) {
+    document.getElementById('error-container').innerHTML = `<div class="error-msg">⚠️ Backend connect nahi hua — localStorage se dikh raha hai. API URL check karo "Add Song" mein.</div>`;
+  }
+  if (!songs.length) { g.innerHTML = '<div class="no-results">Koi song nahi mila. Add karo!</div>'; return; }
+  g.innerHTML = songs.map(s => `
+    <div class="song-card" onclick="openSong('${s._id || s.id}', ${!isOffline})">
+      <h3>${esc(s.title)}</h3>
+      <div class="artist">${esc(s.artist||'Unknown')}</div>
+      ${s.key ? `<span class="key-badge">Key: ${esc(s.key)}</span>` : ''}
+      ${s.genre ? `<span class="genre">${esc(s.genre)}</span>` : ''}
+    </div>`).join('');
+}
+
+let searchTimer;
+function handleSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => renderSongs(document.getElementById('search-input').value), 300);
+}
+
+// =============================================
+// OPEN SONG
+// =============================================
+async function openSong(id, fromApi = true) {
+  transposeSteps = 0;
+  showView('song');
+  document.getElementById('lyrics-display').innerHTML = '<div style="color:var(--text-muted);padding:20px">Loading...</div>';
+  try {
+    if (fromApi) {
+      currentSong = await apiGetSong(id);
+      currentSong._id = currentSong._id || id;
+    } else {
+      currentSong = getLocalSongs().find(s => s.id == id);
+    }
+    renderSongView();
+  } catch(e) {
+    document.getElementById('lyrics-display').innerHTML = `<div style="color:var(--red);padding:20px">Error: ${e.message}</div>`;
+  }
+}
+
+function renderSongView() {
+  document.getElementById('song-title').textContent = currentSong.title;
+  document.getElementById('song-meta').textContent = [currentSong.artist, currentSong.genre, currentSong.key ? `Key: ${currentSong.key}` : ''].filter(Boolean).join(' · ');
+  const label = transposeSteps === 0 ? 'Original' : (transposeSteps > 0 ? `+${transposeSteps} ♯` : `${transposeSteps} ♭`);
+  document.getElementById('transpose-label').textContent = label;
+  document.getElementById('lyrics-display').innerHTML = parseChordPro(currentSong.lyrics, transposeSteps);
+}
+
+function transpose(dir) {
+  transposeSteps = transposeSteps + dir;
+  if (transposeSteps > 6) transposeSteps = -6;
+  if (transposeSteps < -6) transposeSteps = 6;
+  renderSongView();
+}
+
+// =============================================
+// DELETE SONG
+// =============================================
+async function deleteSong() {
+  if (!currentSong) return;
+  if (!confirm(`"${currentSong.title}" delete karna chahte ho?`)) return;
+  try {
+    await apiDeleteSong(currentSong._id || currentSong.id);
+    showToast('Song delete ho gaya!');
+    showView('browse');
+  } catch(e) {
+    showToast('Delete nahi hua: ' + e.message, true);
+  }
+}
+
+// =============================================
+// AUTO-SCROLL
+// =============================================
+function startScroll() {
+  document.getElementById('control-bar').classList.remove('hidden');
+  if (!isPlaying) togglePlay();
+}
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
+  if (isPlaying) runScroll(); else clearInterval(scrollInterval);
+}
+function runScroll() {
+  clearInterval(scrollInterval);
+  const speed = parseInt(document.getElementById('speed-slider').value);
+  scrollInterval = setInterval(() => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    if (window.scrollY >= max) { stopScroll(); return; }
+    window.scrollBy({ top: 1, behavior: 'instant' });
+    document.getElementById('progress-fill').style.width = (window.scrollY/max*100) + '%';
+  }, Math.round(1600/speed));
+}
+function stopScroll() {
+  isPlaying = false; clearInterval(scrollInterval);
+  document.getElementById('play-btn').textContent = '▶';
+  document.getElementById('progress-fill').style.width = '0%';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function hideControlBar() { stopScroll(); document.getElementById('control-bar').classList.add('hidden'); }
+function updateSpeed() {
+  const v = document.getElementById('speed-slider').value;
+  document.getElementById('speed-val').textContent = v;
+  if (isPlaying) { clearInterval(scrollInterval); runScroll(); }
+}
+
+// =============================================
+// SAVE SONG
+// =============================================
+async function saveSong() {
+  const title = document.getElementById('form-title').value.trim();
+  const lyrics = document.getElementById('form-lyrics').value.trim();
+  if (!title) { showToast('Title daalo!', true); return; }
+  if (!lyrics) { showToast('Lyrics daalo!', true); return; }
+  const song = {
+    title, lyrics,
+    artist: document.getElementById('form-artist').value.trim() || 'Unknown',
+    key: document.getElementById('form-key').value,
+    genre: document.getElementById('form-genre').value.trim()
+  };
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    await apiSaveSong(song);
+    showToast(`"${title}" MongoDB mein save ho gaya! 🎵`);
+    clearForm(); showView('browse');
+  } catch(e) {
+    // Fallback: save locally
+    const songs = getLocalSongs();
+    songs.push({ ...song, id: Date.now().toString() });
+    saveLocalSongs(songs);
+    showToast(`Saved locally (backend offline). Error: ${e.message}`, true);
+    clearForm(); showView('browse');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Save to MongoDB';
+  }
+}
+
+function clearForm() {
+  ['form-title','form-artist','form-genre','form-lyrics'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('form-key').value = '';
+}
+
+// =============================================
+// THEME & TOAST
+// =============================================
+function toggleTheme() {
+  const isDark = document.body.dataset.theme === 'dark';
+  document.body.dataset.theme = isDark ? 'light' : 'dark';
+  document.getElementById('theme-btn').textContent = isDark ? '🌙 Dark' : '☀️ Light';
+}
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
