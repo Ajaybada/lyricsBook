@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f0f13">
+<meta name="description" content="Installable worship lyrics and guitar chords app for worship leaders and singers.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <title>ChordBook – Lyrics & Guitar Chords</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:ital,wght@0,700;1,500&display=swap');
@@ -1114,6 +1119,14 @@ function showToast(msg, isError = false) {
   t.style.background = isError ? 'var(--red)' : 'var(--green)';
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(err => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
 }
 </script>
 </body>

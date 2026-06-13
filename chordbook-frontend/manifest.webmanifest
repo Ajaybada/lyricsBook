@@ -1,0 +1,32 @@
+{
+  "name": "ChordBook - Worship Lyrics & Guitar Chords",
+  "short_name": "ChordBook",
+  "description": "Installable worship lyrics and guitar chords app for worship leaders, singers, and musicians.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f0f13",
+  "theme_color": "#0f0f13",
+  "categories": ["music", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
