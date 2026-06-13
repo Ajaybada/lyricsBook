@@ -183,10 +183,10 @@
     <div id="view-add" class="view">
       <div class="api-config" id="api-config-box">
         <strong>🔌 Backend URL</strong> — Apna server URL yahan dalo:<br>
-        <input type="text" id="api-url-input" placeholder="http://localhost:3001" value="" oninput="updateApiUrl()" />
+        <input type="text" id="api-url-input" placeholder="https://lyricsbook.onrender.com" value="" oninput="updateApiUrl()" />
         <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">
           Local: <code style="background:var(--border);padding:2px 5px;border-radius:3px">http://localhost:3001</code> &nbsp;|&nbsp;
-          Render: <code style="background:var(--border);padding:2px 5px;border-radius:3px">https://your-app.onrender.com</code>
+          Render: <code style="background:var(--border);padding:2px 5px;border-radius:3px">https://lyricsbook.onrender.com</code>
         </div>
       </div>
       <div class="form-section">
@@ -258,7 +258,7 @@
 // =============================================
 // CONFIG
 // =============================================
-let API_BASE = localStorage.getItem('chordbook_api_url') || 'http://localhost:3001';
+let API_BASE = localStorage.getItem('chordbook_api_url') || 'https://lyricsbook.onrender.com';
 
 function updateApiUrl() {
   const val = document.getElementById('api-url-input').value.trim().replace(/\/$/, '');
@@ -269,7 +269,7 @@ function updateApiUrl() {
 
 // Set saved URL in input
 document.addEventListener('DOMContentLoaded', () => {
-  const saved = localStorage.getItem('chordbook_api_url') || 'http://localhost:3001';
+  const saved = localStorage.getItem('chordbook_api_url') || 'https://lyricsbook.onrender.com';
   const inp = document.getElementById('api-url-input');
   if (inp) inp.value = saved;
   checkApiStatus();
