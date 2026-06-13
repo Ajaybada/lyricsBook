@@ -42,6 +42,19 @@ songSchema.index({ title: 'text', artist: 'text', genre: 'text' });
 
 const Song = mongoose.model('Song', songSchema);
 
+// ── ARRANGEMENT SCHEMA (Custom versions) ──────
+const arrangementSchema = new mongoose.Schema({
+  song: { type: mongoose.Schema.Types.ObjectId, ref: 'Song', required: true },
+  name: { type: String, required: true, trim: true },
+  key: { type: String, default: '' },
+  lyrics: { type: String, required: true },
+  sectionOrder: [{ type: String }]
+}, {
+  timestamps: true
+});
+
+const Arrangement = mongoose.model('Arrangement', arrangementSchema);
+
 // ── DEFAULT SONGS (Pehli baar ke liye) ───────
 const defaultSongs = [
  
@@ -124,12 +137,85 @@ app.put('/api/songs/:id', async (req, res) => {
   }
 });
 
-// DELETE song
+// DELETE song (cascade delete arrangements)
 app.delete('/api/songs/:id', async (req, res) => {
   try {
     const song = await Song.findByIdAndDelete(req.params.id);
     if (!song) return res.status(404).json({ success: false, message: 'Song nahi mila!' });
-    res.json({ success: true, message: 'Song delete ho gaya!' });
+    
+    // Associated arrangements auto-delete
+    await Arrangement.deleteMany({ song: req.params.id });
+    
+    res.json({ success: true, message: 'Song aur uske arrangements delete ho gaye!' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── ARRANGEMENT API ROUTES ─────────────────────
+
+// GET all arrangements for a specific song
+app.get('/api/songs/:id/arrangements', async (req, res) => {
+  try {
+    const arrangements = await Arrangement.find({ song: req.params.id }).sort({ createdAt: -1 });
+    res.json({ success: true, count: arrangements.length, arrangements });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET single arrangement by ID
+app.get('/api/arrangements/:id', async (req, res) => {
+  try {
+    const arrangement = await Arrangement.findById(req.params.id);
+    if (!arrangement) return res.status(404).json({ success: false, message: 'Arrangement nahi mila!' });
+    res.json({ success: true, arrangement });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST new arrangement for a song
+app.post('/api/songs/:id/arrangements', async (req, res) => {
+  try {
+    const { name, key, lyrics, sectionOrder } = req.body;
+    if (!name || !lyrics) {
+      return res.status(400).json({ success: false, message: 'Name aur Lyrics zaroori hain!' });
+    }
+    const arrangement = await Arrangement.create({
+      song: req.params.id,
+      name,
+      key: key || '',
+      lyrics,
+      sectionOrder: sectionOrder || []
+    });
+    res.status(201).json({ success: true, message: 'Arrangement save ho gaya! 🎸', arrangement });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT update arrangement
+app.put('/api/arrangements/:id', async (req, res) => {
+  try {
+    const arrangement = await Arrangement.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true, runValidators: true }
+    );
+    if (!arrangement) return res.status(404).json({ success: false, message: 'Arrangement nahi mila!' });
+    res.json({ success: true, message: 'Arrangement update ho gaya!', arrangement });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE arrangement
+app.delete('/api/arrangements/:id', async (req, res) => {
+  try {
+    const arrangement = await Arrangement.findByIdAndDelete(req.params.id);
+    if (!arrangement) return res.status(404).json({ success: false, message: 'Arrangement nahi mila!' });
+    res.json({ success: true, message: 'Arrangement delete ho gaya!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

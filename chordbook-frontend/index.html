@@ -135,14 +135,14 @@
 <body data-theme="dark">
 <div id="app">
   <header>
-    <div class="logo">Chord<span>Book</span></div>
+    <div class="logo" onclick="navigate('#browse')" style="cursor: pointer;">Chord<span>Book</span></div>
     <nav>
       <div class="api-status" id="api-status">
         <div class="api-dot" id="api-dot"></div>
         <span id="api-status-text">Checking...</span>
       </div>
-      <button class="nav-btn active" onclick="showView('browse')">🎵 Browse</button>
-      <button class="nav-btn" onclick="showView('add')">+ Add Song</button>
+      <button class="nav-btn active" onclick="navigate('#browse')">🎵 Browse</button>
+      <button class="nav-btn" onclick="navigate('#add')">+ Add Song</button>
       <button class="nav-btn" id="theme-btn" onclick="toggleTheme()">☀️ Light</button>
     </nav>
   </header>
@@ -160,8 +160,13 @@
     <!-- SONG VIEW -->
     <div id="view-song" class="view">
       <div class="song-header">
-        <div class="song-header-left">
-          <h1 id="song-title"></h1>
+        <div class="song-header-left" style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <h1 id="song-title" style="margin-right: 8px;"></h1>
+            <select id="song-version-select" onchange="handleVersionChange()" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 12px; border-radius: 6px; font-family: inherit; font-size: 13px; outline: none; cursor: pointer;">
+              <option value="master">Original Version</option>
+            </select>
+          </div>
           <div class="meta" id="song-meta"></div>
         </div>
         <div class="song-controls">
@@ -172,8 +177,10 @@
           </div>
           <button class="icon-btn" onclick="startScroll()">▶ Auto-scroll</button>
           <button class="icon-btn" onclick="window.print()">🖨 Print</button>
-          <button class="icon-btn danger" onclick="deleteSong()" id="delete-btn">🗑 Delete</button>
-          <button class="icon-btn" onclick="showView('browse')">← Back</button>
+          <button class="icon-btn" id="arrange-btn" onclick="startArrange()">✏️ Create Arrangement</button>
+          <button class="icon-btn" id="edit-arrange-btn" style="display: none;" onclick="editArrange()">⚙️ Edit Version</button>
+          <button class="icon-btn danger" onclick="deleteSongOrArrangement()" id="delete-btn">🗑 Delete</button>
+          <button class="icon-btn" onclick="goBackToBrowse()">← Back</button>
         </div>
       </div>
       <div class="lyrics-container" id="lyrics-display"></div>
@@ -231,6 +238,57 @@
         </div>
       </div>
     </div>
+
+    <!-- ARRANGE SONG VIEW -->
+    <div id="view-arrange" class="view">
+      <div class="form-section">
+        <h2 id="arrange-view-title">Create Custom Arrangement</h2>
+        <div class="form-group">
+          <label>Arrangement Name *</label>
+          <input type="text" id="arrange-name" placeholder="e.g. Sunday Morning Acoustic, Version 2" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Key</label>
+            <select id="arrange-key">
+              <option value="">Select key</option>
+              <option>C</option><option>C#</option><option>D</option><option>D#</option>
+              <option>E</option><option>F</option><option>F#</option><option>G</option>
+              <option>G#</option><option>A</option><option>A#</option><option>B</option>
+              <option>Am</option><option>Dm</option><option>Em</option><option>Bm</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; display: block; margin-bottom: 8px;">Arrange Sections</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Available Sections (from Master) -->
+            <div style="background: var(--surface2); border: 1px solid var(--border); padding: 14px; border-radius: 8px;">
+              <strong style="font-size: 13px; color: var(--accent); display: block; margin-bottom: 10px;">Master Song Sections</strong>
+              <div id="arrange-available-sections" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+            
+            <!-- Arranged Order -->
+            <div style="background: var(--surface2); border: 1px solid var(--border); padding: 14px; border-radius: 8px;">
+              <strong style="font-size: 13px; color: var(--chord); display: block; margin-bottom: 10px;">Your Custom Order</strong>
+              <div id="arrange-ordered-sections" style="display: flex; flex-direction: column; gap: 8px;"></div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">Click [+] on the left to add sections, and use buttons to reorder/remove.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Lyrics & Chords Preview (Editable)</label>
+          <textarea id="arrange-lyrics" style="resize: vertical; min-height: 250px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7;" placeholder="Arrangement lyrics will generate here and can be edited..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="cancelArrange()">Cancel</button>
+          <button class="btn btn-primary" id="save-arrange-btn" onclick="saveArrange()">💾 Save Arrangement</button>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -254,9 +312,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
 // =============================================
-// CONFIG
+// CONFIG & ROUTING
 // =============================================
 let API_BASE = localStorage.getItem('chordbook_api_url') || 'https://lyricsbook.onrender.com';
 
@@ -267,13 +324,53 @@ function updateApiUrl() {
   checkApiStatus();
 }
 
+function navigate(hash) {
+  window.location.hash = hash;
+}
+
+// =============================================
+// ROUTING ENGINE
+// =============================================
+function handleRouting() {
+  const hash = window.location.hash;
+  if (!hash || hash === '#browse') {
+    showView('browse');
+  } else if (hash === '#add') {
+    showView('add');
+  } else if (hash.startsWith('#song=')) {
+    // Format: #song=<songId>&arrangement=<arrId>
+    const rest = hash.slice(6);
+    const parts = rest.split('&');
+    const songId = parts[0];
+    
+    let arrId = null;
+    if (parts.length > 1) {
+      const arrPart = parts.find(p => p.startsWith('arrangement='));
+      if (arrPart) {
+        arrId = arrPart.split('=')[1];
+      }
+    }
+    openSong(songId, true, arrId);
+  } else {
+    showView('browse');
+  }
+}
+
+window.addEventListener('hashchange', handleRouting);
+
 // Set saved URL in input
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('chordbook_api_url') || 'https://lyricsbook.onrender.com';
   const inp = document.getElementById('api-url-input');
   if (inp) inp.value = saved;
   checkApiStatus();
-  renderSongs();
+  
+  // Set default hash if none exists
+  if (!window.location.hash) {
+    window.location.hash = '#browse';
+  } else {
+    handleRouting();
+  }
 });
 
 // =============================================
@@ -329,6 +426,48 @@ async function apiDeleteSong(id) {
   if (!res.ok) throw new Error('Delete nahi hua');
 }
 
+// --- ARRANGEMENT API CALLS ---
+async function apiGetArrangements(songId) {
+  const res = await fetch(`${API_BASE}/api/songs/${songId}/arrangements`);
+  if (!res.ok) throw new Error('Arrangements load nahi hue');
+  const data = await res.json();
+  return data.arrangements;
+}
+
+async function apiGetArrangement(arrId) {
+  const res = await fetch(`${API_BASE}/api/arrangements/${arrId}`);
+  if (!res.ok) throw new Error('Arrangement nahi mila');
+  const data = await res.json();
+  return data.arrangement;
+}
+
+async function apiSaveArrangement(songId, arrangement) {
+  const res = await fetch(`${API_BASE}/api/songs/${songId}/arrangements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(arrangement)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Save nahi hua');
+  return data.arrangement;
+}
+
+async function apiUpdateArrangement(arrId, arrangement) {
+  const res = await fetch(`${API_BASE}/api/arrangements/${arrId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(arrangement)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Update nahi hua');
+  return data.arrangement;
+}
+
+async function apiDeleteArrangement(arrId) {
+  const res = await fetch(`${API_BASE}/api/arrangements/${arrId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Delete nahi hua');
+}
+
 // =============================================
 // FALLBACK: localStorage
 // =============================================
@@ -343,6 +482,46 @@ function getLocalSongs() {
   catch { return DEFAULT_SONGS; }
 }
 function saveLocalSongs(songs) { localStorage.setItem(STORE_KEY, JSON.stringify(songs)); }
+
+const ARRANGEMENTS_STORE_KEY = 'chordbook_arrangements_local';
+
+function getLocalArrangements(songId = null) {
+  try {
+    const arrs = JSON.parse(localStorage.getItem(ARRANGEMENTS_STORE_KEY)) || [];
+    if (songId) return arrs.filter(a => a.song === songId);
+    return arrs;
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalArrangement(songId, arr) {
+  try {
+    const arrs = getLocalArrangements();
+    const index = arrs.findIndex(a => a.id === arr.id || (a._id && a._id === arr._id));
+    const processedArr = { ...arr, id: arr.id || Date.now().toString(), song: songId };
+    if (index !== -1) {
+      arrs[index] = { ...arrs[index], ...processedArr };
+    } else {
+      arrs.push(processedArr);
+    }
+    localStorage.setItem(ARRANGEMENTS_STORE_KEY, JSON.stringify(arrs));
+    return processedArr;
+  } catch (e) {
+    console.error("Local save error:", e);
+    return arr;
+  }
+}
+
+function deleteLocalArrangement(arrId) {
+  try {
+    let arrs = getLocalArrangements();
+    arrs = arrs.filter(a => a.id !== arrId && a._id !== arrId);
+    localStorage.setItem(ARRANGEMENTS_STORE_KEY, JSON.stringify(arrs));
+  } catch (e) {
+    console.error("Local delete error:", e);
+  }
+}
 
 // =============================================
 // CHORD TRANSPOSITION
@@ -374,7 +553,7 @@ function parseChordPro(raw, st = 0) {
   for (const rawLine of raw.split('\n')) {
     const line = st !== 0 ? transposeLine(rawLine, st) : rawLine;
     const trimmed = line.trim();
-    if (/^\[([A-Z][a-z].*|Bridge|Intro|Outro|Solo|Pre-Chorus)\]$/.test(trimmed)) {
+    if (/^\[([A-Za-z0-9\s-]+)\]$/.test(trimmed)) {
       html += `<span class="section-header">⟨ ${trimmed.slice(1,-1)} ⟩</span>`;
       continue;
     }
@@ -402,6 +581,14 @@ function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 // =============================================
 let currentSong = null, transposeSteps = 0;
 let isPlaying = false, scrollInterval = null;
+let currentArrangements = [];
+let activeArrangement = null;
+let isOfflineMode = false;
+
+// Arrangement Builder State
+let parsedMasterSections = [];
+let currentArrangedOrder = [];
+let editingArrangementId = null;
 
 // =============================================
 // VIEWS
@@ -410,9 +597,23 @@ function showView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
-  if (view === 'browse') { document.querySelectorAll('.nav-btn')[0].classList.add('active'); renderSongs(); hideControlBar(); }
-  else if (view === 'add') { document.querySelectorAll('.nav-btn')[1].classList.add('active'); hideControlBar(); }
-  else if (view === 'song') { hideControlBar(); window.scrollTo(0,0); }
+  if (view === 'browse') { 
+    document.querySelectorAll('.nav-btn')[0].classList.add('active'); 
+    renderSongs(); 
+    hideControlBar(); 
+  }
+  else if (view === 'add') { 
+    document.querySelectorAll('.nav-btn')[1].classList.add('active'); 
+    hideControlBar(); 
+  }
+  else if (view === 'song') { 
+    hideControlBar(); 
+    window.scrollTo(0,0); 
+  }
+  else if (view === 'arrange') {
+    hideControlBar();
+    window.scrollTo(0,0);
+  }
 }
 
 // =============================================
@@ -444,7 +645,7 @@ function displaySongGrid(songs, isOffline) {
   }
   if (!songs.length) { g.innerHTML = '<div class="no-results">Koi song nahi mila. Add karo!</div>'; return; }
   g.innerHTML = songs.map(s => `
-    <div class="song-card" onclick="openSong('${s._id || s.id}', ${!isOffline})">
+    <div class="song-card" onclick="navigate('#song=${s._id || s.id}')">
       <h3>${esc(s.title)}</h3>
       <div class="artist">${esc(s.artist||'Unknown')}</div>
       ${s.key ? `<span class="key-badge">Key: ${esc(s.key)}</span>` : ''}
@@ -461,29 +662,94 @@ function handleSearch() {
 // =============================================
 // OPEN SONG
 // =============================================
-async function openSong(id, fromApi = true) {
+async function openSong(id, fromApi = true, selectedArrId = null) {
   transposeSteps = 0;
   showView('song');
   document.getElementById('lyrics-display').innerHTML = '<div style="color:var(--text-muted);padding:20px">Loading...</div>';
+  
+  // Reset selector UI
+  const select = document.getElementById('song-version-select');
+  select.innerHTML = '<option value="master">Original Version</option>';
+  select.value = 'master';
+  activeArrangement = null;
+  document.getElementById('edit-arrange-btn').style.display = 'none';
+  
   try {
     if (fromApi) {
       currentSong = await apiGetSong(id);
       currentSong._id = currentSong._id || id;
+      isOfflineMode = false;
     } else {
       currentSong = getLocalSongs().find(s => s.id == id);
+      isOfflineMode = true;
     }
-    renderSongView();
   } catch(e) {
-    document.getElementById('lyrics-display').innerHTML = `<div style="color:var(--red);padding:20px">Error: ${e.message}</div>`;
+    currentSong = getLocalSongs().find(s => s.id == id || s._id == id);
+    isOfflineMode = true;
+  }
+  
+  if (!currentSong) {
+    document.getElementById('lyrics-display').innerHTML = `<div style="color:var(--red);padding:20px">Song nahi mila!</div>`;
+    return;
+  }
+  
+  await loadArrangements(currentSong._id || currentSong.id, selectedArrId);
+}
+
+async function loadArrangements(songId, selectedArrId = null) {
+  const select = document.getElementById('song-version-select');
+  try {
+    if (isOfflineMode) {
+      currentArrangements = getLocalArrangements(songId);
+    } else {
+      currentArrangements = await apiGetArrangements(songId);
+    }
+  } catch (err) {
+    currentArrangements = getLocalArrangements(songId);
+  }
+  
+  currentArrangements.forEach(arr => {
+    const opt = document.createElement('option');
+    opt.value = arr._id || arr.id;
+    opt.textContent = arr.name;
+    select.appendChild(opt);
+  });
+  
+  if (selectedArrId) {
+    const found = currentArrangements.find(a => (a._id || a.id) === selectedArrId);
+    if (found) {
+      select.value = selectedArrId;
+      activeArrangement = found;
+      document.getElementById('edit-arrange-btn').style.display = 'inline-block';
+    }
+  }
+  
+  renderSongView();
+}
+
+function handleVersionChange() {
+  const select = document.getElementById('song-version-select');
+  const songId = currentSong._id || currentSong.id;
+  const value = select.value;
+  
+  if (value === 'master') {
+    navigate(`#song=${songId}`);
+  } else {
+    navigate(`#song=${songId}&arrangement=${value}`);
   }
 }
 
 function renderSongView() {
-  document.getElementById('song-title').textContent = currentSong.title;
-  document.getElementById('song-meta').textContent = [currentSong.artist, currentSong.genre, currentSong.key ? `Key: ${currentSong.key}` : ''].filter(Boolean).join(' · ');
+  if (!currentSong) return;
+  const displayTitle = activeArrangement ? `${currentSong.title} (${activeArrangement.name})` : currentSong.title;
+  const displayKey = activeArrangement ? (activeArrangement.key || currentSong.key) : currentSong.key;
+  const displayLyrics = activeArrangement ? activeArrangement.lyrics : currentSong.lyrics;
+  
+  document.getElementById('song-title').textContent = displayTitle;
+  document.getElementById('song-meta').textContent = [currentSong.artist, currentSong.genre, displayKey ? `Key: ${displayKey}` : ''].filter(Boolean).join(' · ');
   const label = transposeSteps === 0 ? 'Original' : (transposeSteps > 0 ? `+${transposeSteps} ♯` : `${transposeSteps} ♭`);
   document.getElementById('transpose-label').textContent = label;
-  document.getElementById('lyrics-display').innerHTML = parseChordPro(currentSong.lyrics, transposeSteps);
+  document.getElementById('lyrics-display').innerHTML = parseChordPro(displayLyrics, transposeSteps);
 }
 
 function transpose(dir) {
@@ -493,18 +759,246 @@ function transpose(dir) {
   renderSongView();
 }
 
+function goBackToBrowse() {
+  navigate('#browse');
+}
+
 // =============================================
-// DELETE SONG
+// DELETE SONG OR ARRANGEMENT
 // =============================================
-async function deleteSong() {
+async function deleteSongOrArrangement() {
   if (!currentSong) return;
-  if (!confirm(`"${currentSong.title}" delete karna chahte ho?`)) return;
+  const songId = currentSong._id || currentSong.id;
+  
+  if (activeArrangement) {
+    const arrId = activeArrangement._id || activeArrangement.id;
+    if (!confirm(`"${activeArrangement.name}" version delete karna chahte ho?`)) return;
+    
+    try {
+      if (isOfflineMode) {
+        deleteLocalArrangement(arrId);
+      } else {
+        await apiDeleteArrangement(arrId);
+      }
+      showToast('Arrangement delete ho gaya!');
+    } catch (err) {
+      deleteLocalArrangement(arrId);
+      showToast('Deleted locally');
+    }
+    navigate(`#song=${songId}`);
+  } else {
+    if (!confirm(`"${currentSong.title}" aur uske saare versions delete karna chahte ho?`)) return;
+    try {
+      if (isOfflineMode) {
+        let songs = getLocalSongs().filter(s => s.id !== songId && s._id !== songId);
+        saveLocalSongs(songs);
+        let arrs = getLocalArrangements().filter(a => a.song !== songId);
+        localStorage.setItem(ARRANGEMENTS_STORE_KEY, JSON.stringify(arrs));
+      } else {
+        await apiDeleteSong(songId);
+      }
+      showToast('Song delete ho gaya!');
+      navigate('#browse');
+    } catch(e) {
+      showToast('Delete nahi hua: ' + e.message, true);
+    }
+  }
+}
+
+// =============================================
+// ARRANGEMENT BUILDER ENGINE
+// =============================================
+function parseSongSections(lyrics) {
+  const sections = [];
+  const lines = lyrics.split('\n');
+  let currentHeader = '';
+  let currentContent = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const match = trimmed.match(/^\[([A-Za-z0-9\s-]+)\]$/);
+    
+    if (match) {
+      if (currentHeader || currentContent.length > 0) {
+        sections.push({
+          header: currentHeader || 'Intro/Section',
+          content: currentContent.join('\n').trim()
+        });
+      }
+      currentHeader = match[1];
+      currentContent = [];
+    } else {
+      currentContent.push(line);
+    }
+  }
+  
+  if (currentHeader || currentContent.length > 0) {
+    sections.push({
+      header: currentHeader || 'Intro/Section',
+      content: currentContent.join('\n').trim()
+    });
+  }
+  
+  return sections;
+}
+
+function reconstructLyrics(sections, order) {
+  let output = '';
+  for (const header of order) {
+    const sec = sections.find(s => s.header === header);
+    if (sec) {
+      output += `[${sec.header}]\n${sec.content}\n\n`;
+    }
+  }
+  return output.trim();
+}
+
+function startArrange() {
+  if (!currentSong) return;
+  editingArrangementId = null;
+  document.getElementById('arrange-view-title').textContent = 'Create Custom Arrangement';
+  document.getElementById('arrange-name').value = '';
+  document.getElementById('arrange-key').value = currentSong.key;
+  
+  parsedMasterSections = parseSongSections(currentSong.lyrics);
+  currentArrangedOrder = parsedMasterSections.map(s => s.header);
+  
+  renderArrangementBuilder();
+  showView('arrange');
+}
+
+function editArrange() {
+  if (!currentSong || !activeArrangement) return;
+  editingArrangementId = activeArrangement._id || activeArrangement.id;
+  document.getElementById('arrange-view-title').textContent = 'Edit Custom Arrangement';
+  document.getElementById('arrange-name').value = activeArrangement.name;
+  document.getElementById('arrange-key').value = activeArrangement.key || currentSong.key;
+  
+  parsedMasterSections = parseSongSections(currentSong.lyrics);
+  
+  if (activeArrangement.sectionOrder && activeArrangement.sectionOrder.length > 0) {
+    currentArrangedOrder = [...activeArrangement.sectionOrder];
+  } else {
+    const parsedArr = parseSongSections(activeArrangement.lyrics);
+    currentArrangedOrder = parsedArr.map(s => s.header);
+  }
+  
+  renderArrangementBuilder();
+  showView('arrange');
+}
+
+function renderArrangementBuilder() {
+  const availDiv = document.getElementById('arrange-available-sections');
+  availDiv.innerHTML = parsedMasterSections.map(sec => `
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px;">
+      <span><strong>[${esc(sec.header)}]</strong></span>
+      <button class="nav-btn" style="padding: 2px 8px; border-color: var(--accent); color: var(--accent); font-weight:bold" onclick="addSectionToArrangement('${esc(sec.header)}')">+</button>
+    </div>
+  `).join('');
+  
+  const orderedDiv = document.getElementById('arrange-ordered-sections');
+  if (currentArrangedOrder.length === 0) {
+    orderedDiv.innerHTML = '<div style="color:var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">No sections added yet</div>';
+  } else {
+    orderedDiv.innerHTML = currentArrangedOrder.map((header, idx) => `
+      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px;">
+        <span style="font-weight: 600;">${idx + 1}. [${esc(header)}]</span>
+        <div style="display: flex; gap: 4px;">
+          <button class="nav-btn" style="padding: 1px 6px;" onclick="moveArrangedSection(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+          <button class="nav-btn" style="padding: 1px 6px;" onclick="moveArrangedSection(${idx}, 1)" ${idx === currentArrangedOrder.length - 1 ? 'disabled' : ''}>▼</button>
+          <button class="nav-btn" style="padding: 1px 6px; border-color: var(--red); color: var(--red);" onclick="removeArrangedSection(${idx})">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  updateArrangementPreview();
+}
+
+function addSectionToArrangement(header) {
+  currentArrangedOrder.push(header);
+  renderArrangementBuilder();
+}
+
+// Validation so empty arrangements cannot be saved
+function removeArrangedSection(index) {
+  currentArrangedOrder.splice(index, 1);
+  renderArrangementBuilder();
+}
+
+function moveArrangedSection(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= currentArrangedOrder.length) return;
+  const temp = currentArrangedOrder[index];
+  currentArrangedOrder[index] = currentArrangedOrder[newIndex];
+  currentArrangedOrder[newIndex] = temp;
+  renderArrangementBuilder();
+}
+
+function updateArrangementPreview() {
+  const reconstructed = reconstructLyrics(parsedMasterSections, currentArrangedOrder);
+  document.getElementById('arrange-lyrics').value = reconstructed;
+}
+
+async function saveArrange() {
+  const name = document.getElementById('arrange-name').value.trim();
+  const key = document.getElementById('arrange-key').value;
+  const lyrics = document.getElementById('arrange-lyrics').value.trim();
+  const songId = currentSong._id || currentSong.id;
+  
+  if (!name) {
+    showToast('Arrangement name zaroori hai!', true);
+    return;
+  }
+  
+  if (currentArrangedOrder.length === 0 || !lyrics) {
+    showToast('Arrangement mein kam se kam ek section zaroori hai!', true);
+    return;
+  }
+  
+  const payload = {
+    name,
+    key,
+    lyrics,
+    sectionOrder: currentArrangedOrder
+  };
+  
+  const btn = document.getElementById('save-arrange-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  
   try {
-    await apiDeleteSong(currentSong._id || currentSong.id);
-    showToast('Song delete ho gaya!');
-    showView('browse');
-  } catch(e) {
-    showToast('Delete nahi hua: ' + e.message, true);
+    let savedArr;
+    if (isOfflineMode) {
+      savedArr = saveLocalArrangement(songId, { ...payload, id: editingArrangementId || Date.now().toString() });
+      showToast('Arrangement locally save ho gaya! 🎸');
+    } else {
+      if (editingArrangementId) {
+        savedArr = await apiUpdateArrangement(editingArrangementId, payload);
+      } else {
+        savedArr = await apiSaveArrangement(songId, payload);
+      }
+      showToast('Arrangement save ho gaya! 🎸');
+    }
+    
+    const arrId = savedArr._id || savedArr.id;
+    navigate(`#song=${songId}&arrangement=${arrId}`);
+  } catch (err) {
+    const savedArr = saveLocalArrangement(songId, { ...payload, id: editingArrangementId || Date.now().toString() });
+    showToast(`Saved locally (API Error: ${err.message})`, true);
+    navigate(`#song=${songId}&arrangement=${savedArr.id}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Save Arrangement';
+  }
+}
+
+function cancelArrange() {
+  const songId = currentSong._id || currentSong.id;
+  if (editingArrangementId) {
+    navigate(`#song=${songId}&arrangement=${editingArrangementId}`);
+  } else {
+    navigate(`#song=${songId}`);
   }
 }
 
@@ -562,14 +1056,15 @@ async function saveSong() {
   try {
     await apiSaveSong(song);
     showToast(`"${title}" MongoDB mein save ho gaya! 🎵`);
-    clearForm(); showView('browse');
+    clearForm(); 
+    navigate('#browse');
   } catch(e) {
-    // Fallback: save locally
     const songs = getLocalSongs();
     songs.push({ ...song, id: Date.now().toString() });
     saveLocalSongs(songs);
     showToast(`Saved locally (backend offline). Error: ${e.message}`, true);
-    clearForm(); showView('browse');
+    clearForm(); 
+    navigate('#browse');
   } finally {
     btn.disabled = false; btn.textContent = '💾 Save to MongoDB';
   }
