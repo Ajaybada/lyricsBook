@@ -901,17 +901,11 @@ function renderArrangementBuilder() {
     orderedDiv.innerHTML = '<div style="color:var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">No sections added yet</div>';
   } else {
     orderedDiv.innerHTML = currentArrangedOrder.map(function(header, idx) {
-      var upBtn   = '<button class="nav-btn" style="padding: 1px 6px;"'
-                  + (idx === 0 ? ' disabled' : '')
-                  + ' onclick="moveArrangedSection(' + idx + ', -1)">▲</button>';
-      var downBtn = '<button class="nav-btn" style="padding: 1px 6px;"'
-                  + (idx === currentArrangedOrder.length - 1 ? ' disabled' : '')
-                  + ' onclick="moveArrangedSection(' + idx + ', 1)">▼</button>';
-      var delBtn  = '<button class="nav-btn" style="padding: 1px 6px; border-color: var(--red); color: var(--red);"'
-                  + ' onclick="removeArrangedSection(' + idx + ')">✕</button>';
-      return '<div style="display: flex; justify-content: space-between; align-items: center;'
-           + ' background: var(--surface); border: 1px solid var(--border); padding: 6px 10px;'
-           + ' border-radius: 6px; font-size: 13px;">'
+      var upBtn   = '<button class="nav-btn" style="padding: 1px 6px;"' + (idx === 0 ? ' disabled' : '') + ' onclick="moveArrangedSection(' + idx + ', -1)">▲</button>';
+      var downBtn = '<button class="nav-btn" style="padding: 1px 6px;"' + (idx === currentArrangedOrder.length - 1 ? ' disabled' : '') + ' onclick="moveArrangedSection(' + idx + ', 1)">▼</button>';
+      var delBtn  = '<button class="nav-btn" style="padding: 1px 6px; border-color: var(--red); color: var(--red);" onclick="removeArrangedSection(' + idx + ')">✕</button>';
+      var rowStyle = 'display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px;';
+      return '<div style="' + rowStyle + '">'
            + '<span style="font-weight: 600;">' + (idx + 1) + '. [' + esc(header) + ']</span>'
            + '<div style="display: flex; gap: 4px;">' + upBtn + downBtn + delBtn + '</div>'
            + '</div>';
