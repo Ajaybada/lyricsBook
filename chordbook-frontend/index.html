@@ -900,19 +900,22 @@ function renderArrangementBuilder() {
   if (currentArrangedOrder.length === 0) {
     orderedDiv.innerHTML = '<div style="color:var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">No sections added yet</div>';
   } else {
-    orderedDiv.innerHTML = currentArrangedOrder.map((header, idx) => {
-      const isFirst = idx === 0 ? 'disabled' : '';
-      const isLast  = idx === currentArrangedOrder.length - 1 ? 'disabled' : '';
-      return `
-      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px;">
-        <span style="font-weight: 600;">${idx + 1}. [${esc(header)}]</span>
-        <div style="display: flex; gap: 4px;">
-          <button class="nav-btn" style="padding: 1px 6px;" onclick="moveArrangedSection(${idx}, -1)" ${isFirst}>▲</button>
-          <button class="nav-btn" style="padding: 1px 6px;" onclick="moveArrangedSection(${idx}, 1)" ${isLast}>▼</button>
-          <button class="nav-btn" style="padding: 1px 6px; border-color: var(--red); color: var(--red);" onclick="removeArrangedSection(${idx})">✕</button>
-        </div>
-      </div>
-    `}).join('');
+    orderedDiv.innerHTML = currentArrangedOrder.map(function(header, idx) {
+      var upBtn   = '<button class="nav-btn" style="padding: 1px 6px;"'
+                  + (idx === 0 ? ' disabled' : '')
+                  + ' onclick="moveArrangedSection(' + idx + ', -1)">▲</button>';
+      var downBtn = '<button class="nav-btn" style="padding: 1px 6px;"'
+                  + (idx === currentArrangedOrder.length - 1 ? ' disabled' : '')
+                  + ' onclick="moveArrangedSection(' + idx + ', 1)">▼</button>';
+      var delBtn  = '<button class="nav-btn" style="padding: 1px 6px; border-color: var(--red); color: var(--red);"'
+                  + ' onclick="removeArrangedSection(' + idx + ')">✕</button>';
+      return '<div style="display: flex; justify-content: space-between; align-items: center;'
+           + ' background: var(--surface); border: 1px solid var(--border); padding: 6px 10px;'
+           + ' border-radius: 6px; font-size: 13px;">'
+           + '<span style="font-weight: 600;">' + (idx + 1) + '. [' + esc(header) + ']</span>'
+           + '<div style="display: flex; gap: 4px;">' + upBtn + downBtn + delBtn + '</div>'
+           + '</div>';
+    }).join('');
   }
   
   updateArrangementPreview();
