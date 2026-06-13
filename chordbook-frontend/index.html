@@ -900,16 +900,40 @@ function renderArrangementBuilder() {
   if (currentArrangedOrder.length === 0) {
     orderedDiv.innerHTML = '<div style="color:var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">No sections added yet</div>';
   } else {
-    orderedDiv.innerHTML = currentArrangedOrder.map(function(header, idx) {
-      var upBtn   = '<button class="nav-btn" style="padding: 1px 6px;"' + (idx === 0 ? ' disabled' : '') + ' onclick="moveArrangedSection(' + idx + ', -1)">▲</button>';
-      var downBtn = '<button class="nav-btn" style="padding: 1px 6px;"' + (idx === currentArrangedOrder.length - 1 ? ' disabled' : '') + ' onclick="moveArrangedSection(' + idx + ', 1)">▼</button>';
-      var delBtn  = '<button class="nav-btn" style="padding: 1px 6px; border-color: var(--red); color: var(--red);" onclick="removeArrangedSection(' + idx + ')">✕</button>';
-      var rowStyle = 'display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px;';
-      return '<div style="' + rowStyle + '">'
-           + '<span style="font-weight: 600;">' + (idx + 1) + '. [' + esc(header) + ']</span>'
-           + '<div style="display: flex; gap: 4px;">' + upBtn + downBtn + delBtn + '</div>'
-           + '</div>';
-    }).join('');
+    var rows = [];
+    for (var i = 0; i < currentArrangedOrder.length; i++) {
+      var header = currentArrangedOrder[i];
+      var row = document.createElement('div');
+      row.setAttribute('style', 'display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px;margin-bottom:2px;');
+
+      var label = document.createElement('span');
+      label.setAttribute('style', 'font-weight:600;');
+      label.textContent = (i + 1) + '. [' + header + ']';
+
+      var btns = document.createElement('div');
+      btns.setAttribute('style', 'display:flex;gap:4px;');
+
+      var up = document.createElement('button');
+      up.className = 'nav-btn'; up.setAttribute('style', 'padding:1px 6px;');
+      up.textContent = '▲'; up.disabled = (i === 0);
+      (function(idx){ up.onclick = function(){ moveArrangedSection(idx, -1); }; })(i);
+
+      var dn = document.createElement('button');
+      dn.className = 'nav-btn'; dn.setAttribute('style', 'padding:1px 6px;');
+      dn.textContent = '▼'; dn.disabled = (i === currentArrangedOrder.length - 1);
+      (function(idx){ dn.onclick = function(){ moveArrangedSection(idx, 1); }; })(i);
+
+      var rm = document.createElement('button');
+      rm.className = 'nav-btn'; rm.setAttribute('style', 'padding:1px 6px;border-color:var(--red);color:var(--red);');
+      rm.textContent = '✕';
+      (function(idx){ rm.onclick = function(){ removeArrangedSection(idx); }; })(i);
+
+      btns.appendChild(up); btns.appendChild(dn); btns.appendChild(rm);
+      row.appendChild(label); row.appendChild(btns);
+      rows.push(row);
+    }
+    orderedDiv.innerHTML = '';
+    rows.forEach(function(r){ orderedDiv.appendChild(r); });
   }
   
   updateArrangementPreview();
